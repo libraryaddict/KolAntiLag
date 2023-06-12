@@ -1,7 +1,5 @@
 This script logs you in and out of kol on kolmafia to try keep you on a lag free server.
 
-Because I'm lazy, this script **requires Parka**.
-
 To see the settings, use `prefref antilag_`
 
 You can configure how many latencies to cache, what to fail on, if the fail should throw an abort, etc.
