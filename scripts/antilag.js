@@ -274,7 +274,7 @@ AntiLag = /*#__PURE__*/function () {
 
       (0,external_kolmafia_namespaceObject.print)("Currently ".concat(
         this.getNumber(this.getSessionLag()), "ms, ").concat(
-        this.getSessionLag() <= this.getBestLatency() ? "reached" : "failed", " goal of under ").concat(
+        this.getSessionLag() <= this.getIdealLatency() ? "reached" : "failed", " goal of under ").concat(
         this.getNumber(
           this.getIdealLatency()
         ), "ms. Ideal is ").concat(this.getNumber(this.getBestLatency()), "ms"),
