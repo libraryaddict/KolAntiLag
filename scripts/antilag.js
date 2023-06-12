@@ -57,7 +57,8 @@ AntiLag = /*#__PURE__*/function () {
 
 
 
-  function AntiLag() {_classCallCheck(this, AntiLag);_defineProperty(this, "lastLagTests", "lastLagRecords");_defineProperty(this, "lastLagTested", "_lastLagTested");_defineProperty(this, "thisSessionLag", "_thisSessionLag");_defineProperty(this, "testsBeforeFailing", void 0);_defineProperty(this, "maxToStore", void 0);_defineProperty(this, "testsToStartWith", void 0);_defineProperty(this, "cacheMinuteExpires", void 0);_defineProperty(this, "warnCantFind", void 0);
+
+  function AntiLag() {_classCallCheck(this, AntiLag);_defineProperty(this, "lastLagTests", "lastLagRecords");_defineProperty(this, "lastLagTested", "_lastLagTested");_defineProperty(this, "thisSessionLag", "_thisSessionLag");_defineProperty(this, "testsBeforeFailing", void 0);_defineProperty(this, "maxToStore", void 0);_defineProperty(this, "testsToStartWith", void 0);_defineProperty(this, "cacheMinuteExpires", void 0);_defineProperty(this, "warnCantFind", void 0);_defineProperty(this, "lastLogin", 0);
     this.updateNumbers();
   }_createClass(AntiLag, [{ key: "updateNumbers", value:
 
@@ -87,7 +88,7 @@ AntiLag = /*#__PURE__*/function () {
         this.testsToStartWith,
         getProp("antilag_max_stored", 15)
       );
-      this.warnCantFind = getProp("antilag_attempts_failed", true);
+      this.warnCantFind = getProp("antilag_warn_attempts_failed", true);
     } }, { key: "getCurrentLag", value:
 
     function getCurrentLag() {
@@ -99,8 +100,9 @@ AntiLag = /*#__PURE__*/function () {
 
       var started = Date.now();
 
-      for (var i = 0; i < 2; i++) {
-        (0,external_kolmafia_namespaceObject.cliExecute)("parka " + getParkaNext());
+      for (var i = 0; i < 5; i++) {
+        (0,external_kolmafia_namespaceObject.visitUrl)("council.php");
+        //cliExecute("parka " + getParkaNext());
       }
 
       return Date.now() - started;
@@ -134,12 +136,13 @@ AntiLag = /*#__PURE__*/function () {
             break;
           }
 
-          if (i++ > 0) {
+          if (i++ > 0 || Date.now() - this.lastLogin < 30000) {
             (0,external_kolmafia_namespaceObject.wait)(30);
           }
 
           (0,external_kolmafia_namespaceObject.print)("Trying to log in..", "gray");
           (0,external_kolmafia_namespaceObject.visitUrl)("main.php");
+          this.lastLogin = Date.now();
         } catch (e) {
           if (!("" + e).includes("Too many server redirects")) {
             throw e;
@@ -214,7 +217,7 @@ AntiLag = /*#__PURE__*/function () {
     } }, { key: "getIdealLatency", value:
 
     function getIdealLatency() {
-      return this.getBestLatency() * 1.1;
+      return Math.ceil(this.getBestLatency() * 1.1);
     } }, { key: "isGoodSession", value:
 
     function isGoodSession() {
