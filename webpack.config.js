@@ -2,7 +2,7 @@ const path = require("path");
 
 module.exports = {
   entry: {
-    grimace: "./src/GrimaceMoon.ts",
+    antilag: "./src/AntiLag.ts",
   },
   mode: "production",
   module: {
