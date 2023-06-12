@@ -242,7 +242,7 @@ class AntiLag {
 
     print(
       `Currently ${this.getNumber(this.getSessionLag())}ms, ${
-        this.getSessionLag() <= this.getBestLatency() ? "reached" : "failed"
+        this.getSessionLag() <= this.getIdealLatency() ? "reached" : "failed"
       } goal of under ${this.getNumber(
         this.getIdealLatency()
       )}ms. Ideal is ${this.getNumber(this.getBestLatency())}ms`,
