@@ -1,6 +1,5 @@
 import {
   choiceFollowsFight,
-  cliExecute,
   currentRound,
   fightFollowsChoice,
   getProperty,
@@ -25,6 +24,7 @@ class AntiLag {
   testsToStartWith: number;
   cacheMinuteExpires: number;
   warnCantFind: boolean;
+  lastLogin: number = 0;
 
   constructor() {
     this.updateNumbers();
@@ -56,7 +56,7 @@ class AntiLag {
       this.testsToStartWith,
       getProp("antilag_max_stored", 15)
     );
-    this.warnCantFind = getProp("antilag_attempts_failed", true);
+    this.warnCantFind = getProp("antilag_warn_attempts_failed", true);
   }
 
   getCurrentLag() {
@@ -68,8 +68,9 @@ class AntiLag {
 
     const started = Date.now();
 
-    for (let i = 0; i < 2; i++) {
-      cliExecute("parka " + getParkaNext());
+    for (let i = 0; i < 5; i++) {
+      visitUrl("council.php");
+      //cliExecute("parka " + getParkaNext());
     }
 
     return Date.now() - started;
@@ -103,12 +104,13 @@ class AntiLag {
           break;
         }
 
-        if (i++ > 0) {
+        if (i++ > 0 || Date.now() - this.lastLogin < 30_000) {
           wait(30);
         }
 
         print("Trying to log in..", "gray");
         visitUrl("main.php");
+        this.lastLogin = Date.now();
       } catch (e) {
         if (!("" + e).includes("Too many server redirects")) {
           throw e;
@@ -183,7 +185,7 @@ class AntiLag {
   }
 
   getIdealLatency() {
-    return this.getBestLatency() * 1.1;
+    return Math.ceil(this.getBestLatency() * 1.1);
   }
 
   isGoodSession() {
