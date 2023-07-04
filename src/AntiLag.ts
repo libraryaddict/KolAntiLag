@@ -1,6 +1,10 @@
 import {
+  Item,
+  availableAmount,
   choiceFollowsFight,
   currentRound,
+  equip,
+  equippedAmount,
   fightFollowsChoice,
   getProperty,
   handlingChoice,
@@ -16,15 +20,21 @@ import {
 } from "kolmafia";
 
 class AntiLag {
-  lastLagTests = "lastLagRecords";
-  lastLagTested = "_lastLagTested";
-  thisSessionLag = "_thisSessionLag";
+  pref_lastLagTests = "antilag_lag_history";
+  pref_lastLagTested = "_antilag_last_lag_test";
+  pref_thisSessionLag = "_antilag_current_session_lag";
+  pref_useElvishGlasses = "antilag_use_elvish_sunglasses";
+  pref_antilagCache = "antilag_use_cached_session_lag";
+
+  usingGlasses: boolean;
   testsBeforeFailing: number;
   maxToStore: number;
   testsToStartWith: number;
   cacheMinuteExpires: number;
+  useAntilagCache: boolean;
   warnCantFind: boolean;
   lastLogin: number = 0;
+  currentSessionLag: number;
 
   constructor() {
     this.updateNumbers();
@@ -57,38 +67,56 @@ class AntiLag {
       getProp("antilag_max_stored", 15)
     );
     this.warnCantFind = getProp("antilag_warn_attempts_failed", true);
+    this.usingGlasses = getProp(this.pref_useElvishGlasses, false);
+    this.useAntilagCache = getProp(this.pref_antilagCache, false);
   }
 
   getCurrentLag() {
-    const getParkaNext = () => {
-      return getProperty("parkaMode") == "spikolodon"
-        ? "kachungasaur"
-        : "spikolodon";
-    };
-
     const started = Date.now();
 
     for (let i = 0; i < 5; i++) {
       visitUrl("council.php");
-      //cliExecute("parka " + getParkaNext());
+    }
+
+    return Date.now() - started;
+  }
+
+  getMainpageLag() {
+    const started = Date.now();
+
+    for (let i = 0; i < 5; i++) {
+      visitUrl("https://www.kingdomofloathing.com/");
     }
 
     return Date.now() - started;
   }
 
   getLastTests(): number[] {
-    return getProperty(this.lastLagTests)
+    return getProperty(this.pref_lastLagTests)
       .split(",")
       .filter((s) => s.length > 0)
       .map((s) => toInt(s));
   }
 
   saveLastTests(test: number[]) {
-    setProperty(this.lastLagTests, test.join(","));
+    setProperty(this.pref_lastLagTests, test.join(","));
   }
 
   relog() {
+    // Always reset the current session lag
+    this.currentSessionLag = null;
+
     const hash = myHash();
+
+    const item = Item.get("Elvish sunglasses");
+
+    if (
+      this.usingGlasses &&
+      availableAmount(item) > 0 &&
+      equippedAmount(item) == 0
+    ) {
+      equip(item);
+    }
 
     try {
       visitUrl("logout.php");
@@ -104,7 +132,7 @@ class AntiLag {
           break;
         }
 
-        if (i++ > 0 || Date.now() - this.lastLogin < 30_000) {
+        if (i++ > 0 || Date.now() - this.lastLogin < 31_000) {
           wait(30);
         }
 
@@ -135,32 +163,52 @@ class AntiLag {
     return true;
   }
 
-  hasTestedThisSession() {
-    const setting = getProperty(this.lastLagTested).split("|");
+  needsToCheckCurrentLag() {
+    const setting = getProperty(this.pref_lastLagTested).split("|");
 
     if (setting.length != 2) {
-      return false;
+      return true;
     }
 
     if (setting[0] != myHash()) {
-      return false;
+      return true;
+    }
+
+    // So we know its always this current session
+    // If we're not using the cache, then we always return what the current script runtime was
+    if (!this.useAntilagCache) {
+      return this.currentSessionLag == null;
     }
 
     const diff = Date.now() - toInt(setting[1]);
     const expiresAfter = 1000 * 60 * this.cacheMinuteExpires;
 
     if (diff > expiresAfter) {
-      return false;
+      return true;
     }
 
-    return true;
+    if (this.currentSessionLag == null) {
+      this.currentSessionLag = toInt(getProperty(this.pref_thisSessionLag));
+    }
+
+    return false;
   }
 
   getSessionLag() {
-    if (!this.hasTestedThisSession()) {
-      const current = this.getCurrentLag();
-      setProperty(this.thisSessionLag, current.toString());
-      setProperty(this.lastLagTested, myHash() + "|" + Date.now());
+    if (this.needsToCheckCurrentLag()) {
+      const current = (this.currentSessionLag = this.getCurrentLag());
+      const mainpage = this.getMainpageLag();
+
+      print(
+        "Session: " +
+          this.getNumber(current) +
+          ", mainpage: " +
+          this.getNumber(mainpage),
+        "purple"
+      );
+
+      setProperty(this.pref_thisSessionLag, current.toString());
+      setProperty(this.pref_lastLagTested, myHash() + "|" + Date.now());
 
       const tests = [current, ...this.getLastTests()];
 
@@ -171,17 +219,13 @@ class AntiLag {
       this.saveLastTests(tests);
     }
 
-    return toInt(getProperty(this.thisSessionLag));
+    return this.currentSessionLag;
   }
 
   getBestLatency() {
     const lastTests = this.getLastTests();
 
-    if (lastTests.length == 0) {
-      return 10_000;
-    }
-
-    return lastTests.reduce((l, r) => Math.min(l, r));
+    return lastTests.reduce((l, r) => Math.min(l, r), 10_000);
   }
 
   getIdealLatency() {
