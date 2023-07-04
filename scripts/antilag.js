@@ -58,7 +58,13 @@ AntiLag = /*#__PURE__*/function () {
 
 
 
-  function AntiLag() {_classCallCheck(this, AntiLag);_defineProperty(this, "lastLagTests", "lastLagRecords");_defineProperty(this, "lastLagTested", "_lastLagTested");_defineProperty(this, "thisSessionLag", "_thisSessionLag");_defineProperty(this, "testsBeforeFailing", void 0);_defineProperty(this, "maxToStore", void 0);_defineProperty(this, "testsToStartWith", void 0);_defineProperty(this, "cacheMinuteExpires", void 0);_defineProperty(this, "warnCantFind", void 0);_defineProperty(this, "lastLogin", 0);
+
+
+
+
+
+
+  function AntiLag() {_classCallCheck(this, AntiLag);_defineProperty(this, "pref_lastLagTests", "antilag_lag_history");_defineProperty(this, "pref_lastLagTested", "_antilag_last_lag_test");_defineProperty(this, "pref_thisSessionLag", "_antilag_current_session_lag");_defineProperty(this, "pref_useElvishGlasses", "antilag_use_elvish_sunglasses");_defineProperty(this, "pref_antilagCache", "antilag_use_cached_session_lag");_defineProperty(this, "usingGlasses", void 0);_defineProperty(this, "testsBeforeFailing", void 0);_defineProperty(this, "maxToStore", void 0);_defineProperty(this, "testsToStartWith", void 0);_defineProperty(this, "cacheMinuteExpires", void 0);_defineProperty(this, "useAntilagCache", void 0);_defineProperty(this, "warnCantFind", void 0);_defineProperty(this, "lastLogin", 0);_defineProperty(this, "currentSessionLag", void 0);
     this.updateNumbers();
   }_createClass(AntiLag, [{ key: "updateNumbers", value:
 
@@ -89,38 +95,56 @@ AntiLag = /*#__PURE__*/function () {
         getProp("antilag_max_stored", 15)
       );
       this.warnCantFind = getProp("antilag_warn_attempts_failed", true);
+      this.usingGlasses = getProp(this.pref_useElvishGlasses, false);
+      this.useAntilagCache = getProp(this.pref_antilagCache, false);
     } }, { key: "getCurrentLag", value:
 
     function getCurrentLag() {
-      var getParkaNext = () => {
-        return (0,external_kolmafia_namespaceObject.getProperty)("parkaMode") == "spikolodon" ?
-        "kachungasaur" :
-        "spikolodon";
-      };
-
       var started = Date.now();
 
       for (var i = 0; i < 5; i++) {
         (0,external_kolmafia_namespaceObject.visitUrl)("council.php");
-        //cliExecute("parka " + getParkaNext());
+      }
+
+      return Date.now() - started;
+    } }, { key: "getMainpageLag", value:
+
+    function getMainpageLag() {
+      var started = Date.now();
+
+      for (var i = 0; i < 5; i++) {
+        (0,external_kolmafia_namespaceObject.visitUrl)("https://www.kingdomofloathing.com/");
       }
 
       return Date.now() - started;
     } }, { key: "getLastTests", value:
 
     function getLastTests() {
-      return (0,external_kolmafia_namespaceObject.getProperty)(this.lastLagTests).
+      return (0,external_kolmafia_namespaceObject.getProperty)(this.pref_lastLagTests).
       split(",").
       filter((s) => s.length > 0).
       map((s) => (0,external_kolmafia_namespaceObject.toInt)(s));
     } }, { key: "saveLastTests", value:
 
     function saveLastTests(test) {
-      (0,external_kolmafia_namespaceObject.setProperty)(this.lastLagTests, test.join(","));
+      (0,external_kolmafia_namespaceObject.setProperty)(this.pref_lastLagTests, test.join(","));
     } }, { key: "relog", value:
 
     function relog() {
+      // Always reset the current session lag
+      this.currentSessionLag = null;
+
       var hash = (0,external_kolmafia_namespaceObject.myHash)();
+
+      var item = external_kolmafia_namespaceObject.Item.get("Elvish sunglasses");
+
+      if (
+      this.usingGlasses &&
+      (0,external_kolmafia_namespaceObject.availableAmount)(item) > 0 &&
+      (0,external_kolmafia_namespaceObject.equippedAmount)(item) == 0)
+      {
+        (0,external_kolmafia_namespaceObject.equip)(item);
+      }
 
       try {
         (0,external_kolmafia_namespaceObject.visitUrl)("logout.php");
@@ -136,7 +160,7 @@ AntiLag = /*#__PURE__*/function () {
             break;
           }
 
-          if (i++ > 0 || Date.now() - this.lastLogin < 30000) {
+          if (i++ > 0 || Date.now() - this.lastLogin < 31000) {
             (0,external_kolmafia_namespaceObject.wait)(30);
           }
 
@@ -165,34 +189,54 @@ AntiLag = /*#__PURE__*/function () {
       }
 
       return true;
-    } }, { key: "hasTestedThisSession", value:
+    } }, { key: "needsToCheckCurrentLag", value:
 
-    function hasTestedThisSession() {
-      var setting = (0,external_kolmafia_namespaceObject.getProperty)(this.lastLagTested).split("|");
+    function needsToCheckCurrentLag() {
+      var setting = (0,external_kolmafia_namespaceObject.getProperty)(this.pref_lastLagTested).split("|");
 
       if (setting.length != 2) {
-        return false;
+        return true;
       }
 
       if (setting[0] != (0,external_kolmafia_namespaceObject.myHash)()) {
-        return false;
+        return true;
+      }
+
+      // So we know its always this current session
+      // If we're not using the cache, then we always return what the current script runtime was
+      if (!this.useAntilagCache) {
+        return this.currentSessionLag == null;
       }
 
       var diff = Date.now() - (0,external_kolmafia_namespaceObject.toInt)(setting[1]);
       var expiresAfter = 1000 * 60 * this.cacheMinuteExpires;
 
       if (diff > expiresAfter) {
-        return false;
+        return true;
       }
 
-      return true;
+      if (this.currentSessionLag == null) {
+        this.currentSessionLag = (0,external_kolmafia_namespaceObject.toInt)((0,external_kolmafia_namespaceObject.getProperty)(this.pref_thisSessionLag));
+      }
+
+      return false;
     } }, { key: "getSessionLag", value:
 
     function getSessionLag() {
-      if (!this.hasTestedThisSession()) {
-        var current = this.getCurrentLag();
-        (0,external_kolmafia_namespaceObject.setProperty)(this.thisSessionLag, current.toString());
-        (0,external_kolmafia_namespaceObject.setProperty)(this.lastLagTested, (0,external_kolmafia_namespaceObject.myHash)() + "|" + Date.now());
+      if (this.needsToCheckCurrentLag()) {
+        var current = this.currentSessionLag = this.getCurrentLag();
+        var mainpage = this.getMainpageLag();
+
+        (0,external_kolmafia_namespaceObject.print)(
+          "Session: " +
+          this.getNumber(current) +
+          ", mainpage: " +
+          this.getNumber(mainpage),
+          "purple"
+        );
+
+        (0,external_kolmafia_namespaceObject.setProperty)(this.pref_thisSessionLag, current.toString());
+        (0,external_kolmafia_namespaceObject.setProperty)(this.pref_lastLagTested, (0,external_kolmafia_namespaceObject.myHash)() + "|" + Date.now());
 
         var tests = [current].concat(_toConsumableArray(this.getLastTests()));
 
@@ -203,17 +247,13 @@ AntiLag = /*#__PURE__*/function () {
         this.saveLastTests(tests);
       }
 
-      return (0,external_kolmafia_namespaceObject.toInt)((0,external_kolmafia_namespaceObject.getProperty)(this.thisSessionLag));
+      return this.currentSessionLag;
     } }, { key: "getBestLatency", value:
 
     function getBestLatency() {
       var lastTests = this.getLastTests();
 
-      if (lastTests.length == 0) {
-        return 10000;
-      }
-
-      return lastTests.reduce((l, r) => Math.min(l, r));
+      return lastTests.reduce((l, r) => Math.min(l, r), 10000);
     } }, { key: "getIdealLatency", value:
 
     function getIdealLatency() {
