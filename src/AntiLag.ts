@@ -2,11 +2,13 @@ import {
   Item,
   availableAmount,
   choiceFollowsFight,
+  cliExecute,
   currentRound,
   equip,
   equippedAmount,
   fightFollowsChoice,
   getProperty,
+  getRevision,
   handlingChoice,
   inMultiFight,
   myHash,
@@ -106,8 +108,6 @@ class AntiLag {
     // Always reset the current session lag
     this.currentSessionLag = null;
 
-    const hash = myHash();
-
     const item = Item.get("Elvish sunglasses");
 
     if (
@@ -117,6 +117,32 @@ class AntiLag {
     ) {
       equip(item);
     }
+
+    if (getRevision() >= 27452) {
+      this.doNewRelog();
+    } else {
+      this.doOldRelog();
+    }
+  }
+
+  doNewRelog() {
+    const prop = getProperty("pingLoginCheck");
+
+    if (prop.length > 0 && prop != "none") {
+      setProperty("pingLoginCheck", "none");
+    }
+
+    try {
+      cliExecute("relog");
+    } finally {
+      if (prop.length > 0 && prop != "none") {
+        setProperty("pingLoginCheck", prop);
+      }
+    }
+  }
+
+  doOldRelog() {
+    const hash = myHash();
 
     try {
       visitUrl("logout.php");
