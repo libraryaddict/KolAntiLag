@@ -134,8 +134,6 @@ AntiLag = /*#__PURE__*/function () {
       // Always reset the current session lag
       this.currentSessionLag = null;
 
-      var hash = (0,external_kolmafia_namespaceObject.myHash)();
-
       var item = external_kolmafia_namespaceObject.Item.get("Elvish sunglasses");
 
       if (
@@ -145,6 +143,32 @@ AntiLag = /*#__PURE__*/function () {
       {
         (0,external_kolmafia_namespaceObject.equip)(item);
       }
+
+      if ((0,external_kolmafia_namespaceObject.getRevision)() >= 27452) {
+        this.doNewRelog();
+      } else {
+        this.doOldRelog();
+      }
+    } }, { key: "doNewRelog", value:
+
+    function doNewRelog() {
+      var prop = (0,external_kolmafia_namespaceObject.getProperty)("pingLoginCheck");
+
+      if (prop.length > 0 && prop != "none") {
+        (0,external_kolmafia_namespaceObject.setProperty)("pingLoginCheck", "none");
+      }
+
+      try {
+        (0,external_kolmafia_namespaceObject.cliExecute)("relog");
+      } finally {
+        if (prop.length > 0 && prop != "none") {
+          (0,external_kolmafia_namespaceObject.setProperty)("pingLoginCheck", prop);
+        }
+      }
+    } }, { key: "doOldRelog", value:
+
+    function doOldRelog() {
+      var hash = (0,external_kolmafia_namespaceObject.myHash)();
 
       try {
         (0,external_kolmafia_namespaceObject.visitUrl)("logout.php");
