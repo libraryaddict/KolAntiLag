@@ -64,7 +64,10 @@ AntiLag = /*#__PURE__*/function () {
 
 
 
-  function AntiLag() {_classCallCheck(this, AntiLag);_defineProperty(this, "pref_lastLagTests", "antilag_lag_history");_defineProperty(this, "pref_lastLagTested", "_antilag_last_lag_test");_defineProperty(this, "pref_thisSessionLag", "_antilag_current_session_lag");_defineProperty(this, "pref_useElvishGlasses", "antilag_use_elvish_sunglasses");_defineProperty(this, "pref_antilagCache", "antilag_use_cached_session_lag");_defineProperty(this, "usingGlasses", void 0);_defineProperty(this, "testsBeforeFailing", void 0);_defineProperty(this, "maxToStore", void 0);_defineProperty(this, "testsToStartWith", void 0);_defineProperty(this, "cacheMinuteExpires", void 0);_defineProperty(this, "useAntilagCache", void 0);_defineProperty(this, "warnCantFind", void 0);_defineProperty(this, "lastLogin", 0);_defineProperty(this, "currentSessionLag", void 0);
+
+
+
+  function AntiLag() {_classCallCheck(this, AntiLag);_defineProperty(this, "pref_lastLagTests", "antilag_lag_history");_defineProperty(this, "pref_lastLagTested", "_antilag_last_lag_test");_defineProperty(this, "pref_thisSessionLag", "_antilag_current_session_lag");_defineProperty(this, "pref_useElvishGlasses", "antilag_use_elvish_sunglasses");_defineProperty(this, "pref_antilagCache", "antilag_use_cached_session_lag");_defineProperty(this, "pref_differentConnection", "antilag_reset_different_connection");_defineProperty(this, "pref_antilagConnection", "antilag_current_connection_ping");_defineProperty(this, "usingGlasses", void 0);_defineProperty(this, "testsBeforeFailing", void 0);_defineProperty(this, "maxToStore", void 0);_defineProperty(this, "testsToStartWith", void 0);_defineProperty(this, "cacheMinuteExpires", void 0);_defineProperty(this, "useAntilagCache", void 0);_defineProperty(this, "warnCantFind", void 0);_defineProperty(this, "lastLogin", 0);_defineProperty(this, "currentSessionLag", void 0);_defineProperty(this, "resetConnectionStats", void 0);
     this.updateNumbers();
   }_createClass(AntiLag, [{ key: "updateNumbers", value:
 
@@ -97,6 +100,7 @@ AntiLag = /*#__PURE__*/function () {
       this.warnCantFind = getProp("antilag_warn_attempts_failed", true);
       this.usingGlasses = getProp(this.pref_useElvishGlasses, false);
       this.useAntilagCache = getProp(this.pref_antilagCache, false);
+      this.resetConnectionStats = getProp(this.pref_differentConnection, false);
     } }, { key: "getCurrentLag", value:
 
     function getCurrentLag() {
@@ -104,16 +108,6 @@ AntiLag = /*#__PURE__*/function () {
 
       for (var i = 0; i < 5; i++) {
         (0,external_kolmafia_namespaceObject.visitUrl)("council.php");
-      }
-
-      return Date.now() - started;
-    } }, { key: "getMainpageLag", value:
-
-    function getMainpageLag() {
-      var started = Date.now();
-
-      for (var i = 0; i < 5; i++) {
-        (0,external_kolmafia_namespaceObject.visitUrl)("https://www.kingdomofloathing.com/");
       }
 
       return Date.now() - started;
@@ -244,20 +238,38 @@ AntiLag = /*#__PURE__*/function () {
       }
 
       return false;
+    } }, { key: "getConnectionPing", value:
+
+    function getConnectionPing(expected) {
+      var lowestPing = 999999;
+      var attempts = expected == null ? 5 : 3;
+
+      for (var i = 0; i < attempts; i++) {
+        var started = Date.now();
+        (0,external_kolmafia_namespaceObject.visitUrl)("https://www.kingdomofloathing.com/");
+        lowestPing = Math.min(Date.now() - started, lowestPing);
+
+        if (
+        expected != null &&
+        this.isDifferentConnection(lowestPing, expected) &&
+        attempts < 5)
+        {
+          attempts = 5;
+        }
+      }
+
+      return lowestPing;
+    } }, { key: "isDifferentConnection", value:
+
+    function isDifferentConnection(expected, now) {
+      var perc = Math.min(expected, now) / Math.max(expected, now);
+
+      return perc < 0.8;
     } }, { key: "getSessionLag", value:
 
     function getSessionLag() {
       if (this.needsToCheckCurrentLag()) {
         var current = this.currentSessionLag = this.getCurrentLag();
-        var mainpage = this.getMainpageLag();
-
-        (0,external_kolmafia_namespaceObject.print)(
-          "Session: " +
-          this.getNumber(current) +
-          ", mainpage: " +
-          this.getNumber(mainpage),
-          "purple"
-        );
 
         (0,external_kolmafia_namespaceObject.setProperty)(this.pref_thisSessionLag, current.toString());
         (0,external_kolmafia_namespaceObject.setProperty)(this.pref_lastLagTested, (0,external_kolmafia_namespaceObject.myHash)() + "|" + Date.now());
@@ -288,9 +300,38 @@ AntiLag = /*#__PURE__*/function () {
       var current = this.getSessionLag();
 
       return this.getIdealLatency() > current;
+    } }, { key: "checkResetStats", value:
+
+    function checkResetStats() {
+      if (!this.resetConnectionStats) {
+        return;
+      }
+
+      var expectedConnection = (0,external_kolmafia_namespaceObject.getProperty)(this.pref_antilagConnection).match(
+        /^\d+$/
+      ) ?
+      (0,external_kolmafia_namespaceObject.toInt)((0,external_kolmafia_namespaceObject.getProperty)(this.pref_antilagConnection)) :
+      null;
+      var newConnection = this.getConnectionPing(expectedConnection);
+
+      if (
+      expectedConnection != null &&
+      this.isDifferentConnection(newConnection, expectedConnection))
+      {
+        (0,external_kolmafia_namespaceObject.print)("Different connection detected! Resetting antilag cache");
+        (0,external_kolmafia_namespaceObject.setProperty)(this.pref_antilagCache, "");
+        (0,external_kolmafia_namespaceObject.setProperty)(this.pref_lastLagTested, "");
+        (0,external_kolmafia_namespaceObject.setProperty)(this.pref_thisSessionLag, "");
+
+        this.updateNumbers();
+      }
+
+      (0,external_kolmafia_namespaceObject.setProperty)(this.pref_antilagConnection, newConnection.toString());
     } }, { key: "ensureLowLag", value:
 
     function ensureLowLag() {
+      this.checkResetStats();
+
       var attempts = [];
       var fillingData = () =>
       this.getLastTests().length < this.testsToStartWith;
