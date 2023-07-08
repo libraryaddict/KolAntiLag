@@ -27,6 +27,8 @@ class AntiLag {
   pref_thisSessionLag = "_antilag_current_session_lag";
   pref_useElvishGlasses = "antilag_use_elvish_sunglasses";
   pref_antilagCache = "antilag_use_cached_session_lag";
+  pref_differentConnection = "antilag_reset_different_connection";
+  pref_antilagConnection = "antilag_current_connection_ping";
 
   usingGlasses: boolean;
   testsBeforeFailing: number;
@@ -37,6 +39,7 @@ class AntiLag {
   warnCantFind: boolean;
   lastLogin: number = 0;
   currentSessionLag: number;
+  resetConnectionStats: boolean;
 
   constructor() {
     this.updateNumbers();
@@ -71,6 +74,7 @@ class AntiLag {
     this.warnCantFind = getProp("antilag_warn_attempts_failed", true);
     this.usingGlasses = getProp(this.pref_useElvishGlasses, false);
     this.useAntilagCache = getProp(this.pref_antilagCache, false);
+    this.resetConnectionStats = getProp(this.pref_differentConnection, false);
   }
 
   getCurrentLag() {
@@ -78,16 +82,6 @@ class AntiLag {
 
     for (let i = 0; i < 5; i++) {
       visitUrl("council.php");
-    }
-
-    return Date.now() - started;
-  }
-
-  getMainpageLag() {
-    const started = Date.now();
-
-    for (let i = 0; i < 5; i++) {
-      visitUrl("https://www.kingdomofloathing.com/");
     }
 
     return Date.now() - started;
@@ -220,18 +214,36 @@ class AntiLag {
     return false;
   }
 
+  getConnectionPing(expected: number): number {
+    let lowestPing = 999_999;
+    let attempts = expected == null ? 5 : 3;
+
+    for (let i = 0; i < attempts; i++) {
+      const started = Date.now();
+      visitUrl("https://www.kingdomofloathing.com/");
+      lowestPing = Math.min(Date.now() - started, lowestPing);
+
+      if (
+        expected != null &&
+        this.isDifferentConnection(lowestPing, expected) &&
+        attempts < 5
+      ) {
+        attempts = 5;
+      }
+    }
+
+    return lowestPing;
+  }
+
+  isDifferentConnection(expected: number, now: number): boolean {
+    const perc = Math.min(expected, now) / Math.max(expected, now);
+
+    return perc < 0.8;
+  }
+
   getSessionLag() {
     if (this.needsToCheckCurrentLag()) {
       const current = (this.currentSessionLag = this.getCurrentLag());
-      const mainpage = this.getMainpageLag();
-
-      print(
-        "Session: " +
-          this.getNumber(current) +
-          ", mainpage: " +
-          this.getNumber(mainpage),
-        "purple"
-      );
 
       setProperty(this.pref_thisSessionLag, current.toString());
       setProperty(this.pref_lastLagTested, myHash() + "|" + Date.now());
@@ -264,7 +276,36 @@ class AntiLag {
     return this.getIdealLatency() > current;
   }
 
+  checkResetStats() {
+    if (!this.resetConnectionStats) {
+      return;
+    }
+
+    const expectedConnection = getProperty(this.pref_antilagConnection).match(
+      /^\d+$/
+    )
+      ? toInt(getProperty(this.pref_antilagConnection))
+      : null;
+    const newConnection = this.getConnectionPing(expectedConnection);
+
+    if (
+      expectedConnection != null &&
+      this.isDifferentConnection(newConnection, expectedConnection)
+    ) {
+      print("Different connection detected! Resetting antilag cache");
+      setProperty(this.pref_antilagCache, "");
+      setProperty(this.pref_lastLagTested, "");
+      setProperty(this.pref_thisSessionLag, "");
+
+      this.updateNumbers();
+    }
+
+    setProperty(this.pref_antilagConnection, newConnection.toString());
+  }
+
   ensureLowLag() {
+    this.checkResetStats();
+
     const attempts = [];
     const fillingData = () =>
       this.getLastTests().length < this.testsToStartWith;
