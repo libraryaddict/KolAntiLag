@@ -107,7 +107,7 @@ AntiLag = /*#__PURE__*/function () {
       var started = Date.now();
 
       for (var i = 0; i < 5; i++) {
-        (0,external_kolmafia_namespaceObject.visitUrl)("council.php");
+        (0,external_kolmafia_namespaceObject.visitUrl)("api.php?what=events&for=Antilag_by_Irrat");
       }
 
       return Date.now() - started;
