@@ -81,7 +81,7 @@ class AntiLag {
     const started = Date.now();
 
     for (let i = 0; i < 5; i++) {
-      visitUrl("council.php");
+      visitUrl("api.php?what=events&for=Antilag_by_Irrat");
     }
 
     return Date.now() - started;
