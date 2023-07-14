@@ -389,11 +389,24 @@ AntiLag = /*#__PURE__*/function () {
 
     function getNumber(num) {
       return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    } }, { key: "checkCurrentLatency", value:
+
+    function checkCurrentLatency() {
+      (0,external_kolmafia_namespaceObject.print)("Current latency of ".concat(
+        this.getNumber(
+          this.getSessionLag()
+        ), "ms, minimum is ").concat(this.getNumber(Math.round(this.getIdealLatency())), "ms"),
+      "blue"
+      );
     } }]);return AntiLag;}();
 
 
 function main() {
-  new AntiLag().ensureLowLag();
+  (0,external_kolmafia_namespaceObject.print)(
+    "AntiLag is no longer required due to internal kol changes with load balancing. If you are having serious lag, Gausie is very interested and you should contact them without changing your session so he can check what's going on!",
+    "gray"
+  );
+  new AntiLag().checkCurrentLatency();
 }
 var __webpack_export_target__ = exports;
 for(var i in __webpack_exports__) __webpack_export_target__[i] = __webpack_exports__[i];
