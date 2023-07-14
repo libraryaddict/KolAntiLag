@@ -364,8 +364,21 @@ class AntiLag {
   getNumber(num: number) {
     return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   }
+
+  checkCurrentLatency() {
+    print(
+      `Current latency of ${this.getNumber(
+        this.getSessionLag()
+      )}ms, minimum is ${this.getNumber(Math.round(this.getIdealLatency()))}ms`,
+      "blue"
+    );
+  }
 }
 
 export function main() {
-  new AntiLag().ensureLowLag();
+  print(
+    "AntiLag is no longer required due to internal kol changes with load balancing. If you are having serious lag, Gausie is very interested and you should contact them without changing your session so he can check what's going on!",
+    "gray"
+  );
+  new AntiLag().checkCurrentLatency();
 }
