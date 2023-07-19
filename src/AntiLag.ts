@@ -376,9 +376,10 @@ class AntiLag {
 }
 
 export function main() {
-  print(
+  /* print(
     "AntiLag is no longer required due to internal kol changes with load balancing. If you are having serious lag, Gausie is very interested and you should contact them without changing your session so he can check what's going on!",
     "gray"
   );
-  new AntiLag().checkCurrentLatency();
+  new AntiLag().checkCurrentLatency();*/
+  new AntiLag().ensureLowLag();
 }
